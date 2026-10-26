@@ -5,10 +5,10 @@ namespace WinRebuilder.UI;
 
 internal static class ThemePalette
 {
-    private static readonly string[] Keys = ["CanvasBrush", "SidebarBrush", "CardBrush", "TextBrush", "MutedBrush", "BorderBrushSoft",
+    private static readonly string[] Keys = ["CanvasBrush", "SidebarBrush", "CardBrush", "TextBrush", "TextSecondaryBrush", "MutedBrush", "TextDisabledBrush", "TextOnAccentBrush", "BorderBrushSoft",
         "AccentBrush", "AccentHoverBrush", "HoverBrush", "SelectionBrush", "ErrorBrush"];
-    private static readonly string[] Dark = ["#171A20", "#20242D", "#292E38", "#F5F6FA", "#AFB6C4", "#3B424E", "#3F72C6", "#2D5EAE", "#343D4D", "#31496B", "#F28B82"];
-    private static readonly string[] Light = ["#F3F4F7", "#ECEEF3", "#FFFFFF", "#20232B", "#687080", "#DFE2E9", "#3976D5", "#2B65C3", "#E5EAF3", "#DDE9FA", "#B42318"];
+    private static readonly string[] Dark = ["#171A20", "#20242D", "#292E38", "#F0F2F7", "#CCD2DE", "#B4BCCB", "#929BAC", "#FFFFFF", "#3B424E", "#3F72C6", "#2D5EAE", "#343D4D", "#31496B", "#F28B82"];
+    private static readonly string[] Light = ["#F3F4F7", "#ECEEF3", "#FFFFFF", "#20232B", "#505A6A", "#687080", "#8B93A0", "#FFFFFF", "#DFE2E9", "#3976D5", "#2B65C3", "#E5EAF3", "#DDE9FA", "#B42318"];
     public static bool IsDark { get; private set; }
     internal static string ColorFor(string key, bool dark) => (dark ? Dark : Light)[Array.IndexOf(Keys, key)];
 

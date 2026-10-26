@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Resources;
 using System.Globalization;
+using System.Windows.Media;
 using WinRebuilder.UI;
 using Xunit;
 
@@ -54,5 +55,26 @@ public sealed class LocalizationTests
         foreach (var key in new[] { "CanvasBrush", "SidebarBrush", "CardBrush", "HoverBrush", "SelectionBrush" })
             Assert.NotEqual("#FFFFFF", ThemePalette.ColorFor(key, true));
         Assert.Equal("#FFFFFF", ThemePalette.ColorFor("CardBrush", false));
+        foreach (var key in new[] { "TextBrush", "TextSecondaryBrush", "MutedBrush", "TextDisabledBrush" })
+        {
+            var dark = (Color)ColorConverter.ConvertFromString(ThemePalette.ColorFor(key, true));
+            var light = (Color)ColorConverter.ConvertFromString(ThemePalette.ColorFor(key, false));
+            Assert.True(dark.R > 100 && dark.G > 100 && dark.B > 100);
+            Assert.NotEqual(dark, light);
+        }
+    }
+
+    [Fact]
+    public void HeadingsUseStrongReusableStyles()
+    {
+        var root = Path.GetFullPath("../../../../../", AppContext.BaseDirectory);
+        var resources = File.ReadAllText(Path.Combine(root, "src/WinRebuilder.UI/App.xaml"));
+        var window = File.ReadAllText(Path.Combine(root, "src/WinRebuilder.UI/MainWindow.xaml"));
+        Assert.Contains("x:Key=\"PageTitleStyle\"", resources);
+        Assert.Contains("FontWeight\" Value=\"Bold\"", resources);
+        Assert.Contains("x:Key=\"SectionTitleStyle\"", resources);
+        Assert.Contains("FontWeight\" Value=\"SemiBold\"", resources);
+        Assert.Contains("Style=\"{StaticResource PageTitleStyle}\"", window);
+        Assert.DoesNotContain("Foreground=\"Black\"", resources);
     }
 }

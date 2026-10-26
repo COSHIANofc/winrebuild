@@ -26,17 +26,23 @@ public sealed class DefaultsTests
     {
         var props = XDocument.Load(Path.Combine(Root, "Directory.Build.props"));
         var group = props.Root!.Element("PropertyGroup")!;
-        Assert.Equal("0.4.0", group.Element("Version")?.Value);
-        Assert.Equal("0.4.0.0", group.Element("AssemblyVersion")?.Value);
-        Assert.Equal("0.4.0.0", group.Element("FileVersion")?.Value);
-        Assert.Equal("v.1.0.a-pre1", group.Element("InformationalVersion")?.Value);
-        Assert.Equal("v.1.0.a-pre1", typeof(Planner).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
+        Assert.Equal("0.4.1", group.Element("Version")?.Value);
+        Assert.Equal("0.4.1.0", group.Element("AssemblyVersion")?.Value);
+        Assert.Equal("0.4.1.0", group.Element("FileVersion")?.Value);
+        Assert.Equal("v.1.0.a-pre2", group.Element("InformationalVersion")?.Value);
+        Assert.Equal("v.1.0.a-pre2", typeof(Planner).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
         var ui = File.ReadAllText(Path.Combine(Root, "src/WinRebuilder.UI/WinRebuilder.UI.csproj"));
         Assert.Contains("<OutputType>WinExe</OutputType>", ui);
         Assert.Contains("<AssemblyName>WinRebuilder</AssemblyName>", ui);
         Assert.Contains("<ApplicationIcon>Assets/WinRebuilder.ico</ApplicationIcon>", ui);
         Assert.True(File.Exists(Path.Combine(Root, "src/WinRebuilder.UI/Assets/WinRebuilder.ico")));
-        Assert.Contains("インストール", File.ReadAllText(Path.Combine(Root, "README.md")));
+        var readme = File.ReadAllText(Path.Combine(Root, "README.md"));
+        foreach (var section in new[] { "## インストール", "## 使い方", "## ソフトウェア設定", "## ExplorerPatcher" })
+            Assert.Contains(section, readme);
+        Assert.Contains("config.yml", readme);
+        Assert.Contains("https://winget.coshian.dev", readme);
+        Assert.Contains("再読み込み", readme);
+        Assert.DoesNotContain("## ビルド", readme);
         var solution = File.ReadAllText(Path.Combine(Root, "WinRebuilder.slnx"));
         Assert.DoesNotContain("WinRebuilder.Cli", solution);
         Assert.False(File.Exists(Path.Combine(Root, "src/WinRebuilder.Cli/WinRebuilder.Cli.csproj")));

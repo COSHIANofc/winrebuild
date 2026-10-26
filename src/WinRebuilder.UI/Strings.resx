@@ -192,6 +192,12 @@
   <data name="StatusReloaded" xml:space="preserve">
     <value>Reloaded config.yml.</value>
   </data>
+  <data name="StatusExternalReloaded" xml:space="preserve">
+    <value>config.yml changed externally and was reloaded.</value>
+  </data>
+  <data name="StatusConfigInvalid" xml:space="preserve">
+    <value>Could not reload config.yml; the last valid configuration remains active: {0}</value>
+  </data>
   <data name="StatusInstalling" xml:space="preserve">
     <value>Installing {0}</value>
   </data>

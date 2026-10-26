@@ -51,7 +51,7 @@ public sealed class UiWorkflowTests
             using var model = new MainViewModel(dialogs, path, _ => runner);
             await model.InitializeAsync();
             Assert.Equal(2, model.Packages.Count);
-            Assert.Equal("WinRebuilder v.1.0.a-pre1", model.WindowTitle);
+            Assert.Equal("WinRebuilder v.1.0.a-pre2", model.WindowTitle);
             dialogs.Package = ("CrystalDiskInfo", "CrystalDewWorld.CrystalDiskInfo");
             model.AddCommand.Execute(null);
             await Until(() => model.Packages.Count == 3);
@@ -136,6 +136,44 @@ public sealed class UiWorkflowTests
             Localization.Instance.Select(originalLanguage);
             Directory.Delete(folder, true);
         }
+    }
+
+    [Fact]
+    public async Task ExternalChangesReloadOnDispatchedThreadAndRecoverAfterInvalidFile()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "winrebuilder-sync-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var path = Path.Combine(folder, "config.yml");
+            await File.WriteAllTextAsync(path, Config);
+            var queued = new System.Collections.Concurrent.ConcurrentQueue<Action>();
+            using var model = new MainViewModel(new FakeDialogs(), path, _ => new FakeRunner(), queued.Enqueue);
+            await model.InitializeAsync();
+            Assert.Equal(2, model.Packages.Count);
+            await File.WriteAllTextAsync(path, "version: [");
+            await UntilDispatched(() => model.Status.Contains(Localization.Instance["StatusConfigInvalid"].Split('{')[0], StringComparison.Ordinal), queued);
+            Assert.Equal(2, model.Packages.Count);
+            var replacement = Path.Combine(folder, "editor.tmp");
+            await File.WriteAllTextAsync(replacement, "version: 1\npackages: []\n");
+            File.Move(replacement, path, true);
+            await UntilDispatched(() => model.Packages.Count == 0, queued);
+            Assert.Contains(Localization.Instance["StatusExternalReloaded"], model.Log);
+            model.ReloadCommand.Execute(null);
+            await Until(() => model.Status == Localization.Instance["StatusReloaded"]);
+        }
+        finally { Directory.Delete(folder, true); }
+    }
+
+    private static async Task UntilDispatched(Func<bool> condition,
+        System.Collections.Concurrent.ConcurrentQueue<Action> queued)
+    {
+        for (var i = 0; i < 120 && !condition(); i++)
+        {
+            while (queued.TryDequeue(out var action)) action();
+            await Task.Delay(25);
+        }
+        Assert.True(condition());
     }
 
     private static async Task Until(Func<bool> condition)

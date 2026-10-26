@@ -4,6 +4,7 @@ public sealed class SoftwareWorkflow(ConfigurationWorkspace workspace, IPlanRunn
 {
     public LoadedProfile Current => workspace.Current;
     public Task ReloadAsync(CancellationToken ct = default) => workspace.ReloadAsync(ct);
+    public Task<bool> ReloadIfChangedAsync(CancellationToken ct = default) => workspace.ReloadIfChangedAsync(ct);
 
     public Task AddWingetAsync(string name, string id, CancellationToken ct = default) =>
         workspace.AddPackageAsync(new PackageSpec(name, PackageProvider.Winget, id, null, null, null,

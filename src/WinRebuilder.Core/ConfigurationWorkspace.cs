@@ -27,6 +27,15 @@ public sealed class ConfigurationWorkspace
         Current = next;
     }
 
+    public async Task<bool> ReloadIfChangedAsync(CancellationToken ct = default)
+    {
+        var next = await ConfigLoader.LoadAsync(Path, ct);
+        Planner.Create(next);
+        if (next.Sha256 == Current.Sha256) return false;
+        Current = next;
+        return true;
+    }
+
     public Task AddPackageAsync(PackageSpec package, CancellationToken ct = default)
     {
         var packages = Current.Profile.Packages.Append(package).ToArray();

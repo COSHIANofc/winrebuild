@@ -37,6 +37,10 @@ internal sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly IUserDialogs dialogs;
     private readonly UiCommand[] commands;
     private WindowsExecutionSession? session;
+    private ConfigurationChangeWatcher? configWatcher;
+    private readonly Action<Action> dispatch;
+    private bool pendingConfigChange;
+    private bool disposed;
     private SoftwareWorkflow? workflow;
     private CancellationTokenSource? cancellation;
     private bool busy;
@@ -51,11 +55,17 @@ internal sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private RegistryBackup? selectedBackup;
 
     public MainViewModel(IUserDialogs dialogs, string? configPath = null,
-        Func<ConfigurationWorkspace, IPlanRunner>? runnerFactory = null)
+        Func<ConfigurationWorkspace, IPlanRunner>? runnerFactory = null, Action<Action>? dispatch = null)
     {
         this.dialogs = dialogs;
         this.configPath = configPath ?? System.IO.Path.Combine(AppContext.BaseDirectory, "config.yml");
         this.runnerFactory = runnerFactory;
+        this.dispatch = dispatch ?? (action =>
+        {
+            var ui = Application.Current?.Dispatcher;
+            if (ui is null || ui.CheckAccess()) action();
+            else ui.BeginInvoke(action);
+        });
         AddCommand = Command(() => _ = RunAsync(AddAsync), () => Ready);
         RemoveCommand = Command(() => _ = RunAsync(RemoveAsync), () => Ready && SelectedPackage is not null && SelectedPackage.Name != "ExplorerPatcher");
         InstallSelectedCommand = Command(() => _ = RunAsync(InstallSelectedAsync), () => Ready && SelectedPackage is not null);
@@ -102,7 +112,7 @@ internal sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     public SoftwareRow? SelectedPackage { get => selectedPackage; set { selectedPackage = value; Changed(); RefreshCommands(); } }
     public string Status => Localization.Instance.Format(statusKey, statusArgs);
     private void SetStatus(string key, params object[] args) { statusKey = key; statusArgs = args; Changed(nameof(Status)); Changed(nameof(StatusBrush)); }
-    public Brush StatusBrush => statusKey is "StatusFailed" or "StatusOpenFailed" or "StatusInstallFailed" or "StatusCheckFailed" or "StatusRollbackFailed" ?
+    public Brush StatusBrush => statusKey is "StatusFailed" or "StatusOpenFailed" or "StatusInstallFailed" or "StatusCheckFailed" or "StatusRollbackFailed" or "StatusConfigInvalid" ?
         Application.Current?.Resources["ErrorBrush"] as Brush ?? Brushes.IndianRed :
         Application.Current?.Resources["MutedBrush"] as Brush ?? Brushes.Gray;
     public string ExplorerSettingsFile { get => explorerSettingsFile == "None" ? Localization.Instance["None"] : explorerSettingsFile; private set { explorerSettingsFile = value; Changed(); RefreshCommands(); } }
@@ -174,6 +184,8 @@ internal sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             workflow = new SoftwareWorkflow(workspace, runner);
             RefreshProfile();
             SetStatus("StatusReady", configPath);
+            configWatcher = new ConfigurationChangeWatcher(configPath);
+            configWatcher.Changed += OnConfigFileChanged;
         }
         catch (Exception e) { SetStatus("StatusOpenFailed", e.Message); }
         RefreshCommands();
@@ -218,6 +230,11 @@ internal sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         finally
         {
             cancellation.Dispose(); cancellation = null; busy = false; RefreshCommands();
+            if (pendingConfigChange && !disposed)
+            {
+                pendingConfigChange = false;
+                _ = RunAsync(AutomaticReloadAsync);
+            }
         }
     }
 
@@ -239,8 +256,39 @@ internal sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
     private async Task ReloadAsync(CancellationToken ct)
     {
-        await workflow!.ReloadAsync(ct);
-        RefreshProfile(); SetStatus("StatusReloaded");
+        try
+        {
+            await workflow!.ReloadAsync(ct);
+            RefreshProfile(); SetStatus("StatusReloaded");
+        }
+        catch (Exception e) when (e is FormatException or IOException or UnauthorizedAccessException)
+        {
+            SetStatus("StatusConfigInvalid", e.Message);
+            AppendLog(Status);
+        }
+    }
+
+    private void OnConfigFileChanged(object? sender, EventArgs e) => dispatch(() =>
+    {
+        if (disposed) return;
+        if (!Ready) { pendingConfigChange = true; return; }
+        _ = RunAsync(AutomaticReloadAsync);
+    });
+
+    private async Task AutomaticReloadAsync(CancellationToken ct)
+    {
+        try
+        {
+            if (!await workflow!.ReloadIfChangedAsync(ct)) return;
+            RefreshProfile();
+            SetStatus("StatusExternalReloaded");
+            AppendLog(Status);
+        }
+        catch (Exception e) when (e is FormatException or IOException or UnauthorizedAccessException)
+        {
+            SetStatus("StatusConfigInvalid", e.Message);
+            AppendLog(Status);
+        }
     }
 
     private async Task InstallSelectedAsync(CancellationToken ct)
@@ -324,7 +372,13 @@ internal sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         SetStatus(results.Any(x => x.Outcome == Outcome.Fail) ? "StatusInstallFailed" : "StatusCompleted");
     }
 
-    public void Dispose() { cancellation?.Cancel(); session?.Dispose(); }
+    public void Dispose()
+    {
+        disposed = true;
+        if (configWatcher is not null) { configWatcher.Changed -= OnConfigFileChanged; configWatcher.Dispose(); }
+        cancellation?.Cancel();
+        session?.Dispose();
+    }
 
     private void AppendLog(string entry)
     {

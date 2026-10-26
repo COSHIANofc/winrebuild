@@ -19,7 +19,7 @@ jobs:
         run: |
           [xml]$props = Get-Content Directory.Build.props
           if ($env:TAG_NAME -ne $props.Project.PropertyGroup.InformationalVersion) { throw 'Tag does not match the public version.' }
-          if ($props.Project.PropertyGroup.Version -ne '0.4.0' -or $props.Project.PropertyGroup.AssemblyVersion -ne '0.4.0.0' -or $props.Project.PropertyGroup.FileVersion -ne '0.4.0.0') { throw 'Internal version mismatch.' }
+          if ($props.Project.PropertyGroup.Version -ne '0.4.1' -or $props.Project.PropertyGroup.AssemblyVersion -ne '0.4.1.0' -or $props.Project.PropertyGroup.FileVersion -ne '0.4.1.0') { throw 'Internal version mismatch.' }
       - run: dotnet restore WinRebuilder.slnx
       - run: dotnet build WinRebuilder.slnx --no-restore -c Release
       - run: dotnet test WinRebuilder.slnx --no-build -c Release

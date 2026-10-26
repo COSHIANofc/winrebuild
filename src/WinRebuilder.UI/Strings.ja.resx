@@ -192,6 +192,12 @@
   <data name="StatusReloaded" xml:space="preserve">
     <value>config.yml を再読み込みしました。</value>
   </data>
+  <data name="StatusExternalReloaded" xml:space="preserve">
+    <value>外部で変更された config.yml を再読み込みしました。</value>
+  </data>
+  <data name="StatusConfigInvalid" xml:space="preserve">
+    <value>config.yml を再読み込みできません。最後に有効だった設定を使用します: {0}</value>
+  </data>
   <data name="StatusInstalling" xml:space="preserve">
     <value>{0} をインストール中</value>
   </data>
